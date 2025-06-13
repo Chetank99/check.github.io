@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dynamic Foraging-Flexibility Task (DFFT) - IDED Implementation</title>
+    <script src="https://unpkg.com/jspsych@7.3.1"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.1.2"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.1.2"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-instructions@1.1.3"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-survey-text@1.1.2"></script>
+    <link href="https://unpkg.com/jspsych@7.3.1/css/jspsych.css" rel="stylesheet" type="text/css" />
+    
+    <style>
+        .foraging-environment {
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            position: relative;
+        }
+        
+        .trial-header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(33, 150, 243, 0.1);
+            border-radius: 10px;
+        }
+        
+        .stats-row {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-bottom: 10px;
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-weight: bold;
+            font-size: 1.4em;
+            color: #333;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .global-resources {
+            background: rgba(255, 193, 7, 0.2);
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border: 2px solid #FFC107;
+        }
+        
+        .resource-pool-bar {
+            width: 100%;
+            height: 12px;
+            background: #ddd;
+            border-radius: 6px;
+            margin: 5px 0;
+            overflow: hidden;
+        }
+        
+        .resource-pool-fill {
+            height: 100%;
+            background: linear-gradient(to right, #4CAF50, #FFC107, #f44336);
+            transition: width 0.3s ease;
+        }
+        
+        .patches-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+            min-height: 500px;
+        }
+        
+        .patch {
+            border: 3px solid #ccc;
+            border-radius: 15px;
+            padding: 15px;
+            background: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .patch:hover {
+            border-color: #4CAF50;
+            transform: scale(1.02);
+        }
+        
+        .patch.active {
+            border-color: #4CAF50;
+            border-width: 4px;
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.3);
+        }
+        
+        .patch.top-location { /* Top row patches */ }
+        .patch.bottom-location { /* Bottom row patches */ }
+        
+        .patch-header {
+            text-align: center;
+            margin-bottom: 15px;
+            padding: 8px;
+            background: rgba(76, 175, 80, 0.1);
+            border-radius: 8px;
+        }
+        
+        .patch-title {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        
+        .patch-location {
+            font-size: 0.8em;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .resources-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+        
+        .resource-item {
+            width: 60px;
+            height: 60px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 3px solid #333;
+            position: relative;
+            font-weight: bold;
+        }
+        
+        .resource-item:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(0,0,0,0.3);
+        }
+        
+        .resource-item.collected {
+            opacity: 0.2;
+            transform: scale(0.6);
+            cursor: not-allowed;
+            filter: grayscale(100%);
+            border-color: #999;
+        }
+        
+        .travel-cost-display {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(244, 67, 54, 0.9);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        
+        .action-area {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .action-btn {
+            padding: 12px 24px;
+            margin: 0 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .action-btn.leave {
+            background: #f44336;
+            color: white;
+        }
+        
+        .action-btn.leave:hover {
+            background: #d32f2f;
+        }
+        
+        .action-btn.end-trial {
+            background: #2196F3;
+            color: white;
+        }
+        
+        .action-btn.end-trial:hover {
+            background: #1976D2;
+        }
+        
+        .action-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .feedback-area {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            max-width: 300px;
+            z-index: 1000;
+        }
+        
+        .feedback {
+            padding: 12px;
+            margin: 5px 0;
+            border-radius: 8px;
+            font-weight: bold;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        .feedback.reward {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .feedback.travel {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .feedback.scarcity {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .epoch-transition {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 87, 34, 0.95);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            z-index: 2000;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            max-width: 500px;
+        }
+        
+        .no-patch-selected {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-style: italic;
+            background: rgba(0,0,0,0.05);
+            border-radius: 10px;
+        }
+        
+        .constraint-warning {
+            background: rgba(244, 67, 54, 0.1);
+            border: 2px solid #f44336;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            text-align: center;
+            font-weight: bold;
+            color: #d32f2f;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes deplete {
+            0% { background-color: rgba(76, 175, 80, 0.2); }
+            100% { background-color: rgba(244, 67, 54, 0.2); }
+        }
+        
+        .depleting {
+            animation: deplete 0.5s ease-out;
+        }
+        
+        .points-animation {
+            position: absolute;
+            font-size: 1.2em;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 100;
+            animation: pointsFloat 1.5s ease-out forwards;
+        }
+        
+        .points-animation.high-value {
+            color: #4CAF50;
+            text-shadow: 0 0 10px rgba(76, 175, 80, 0.8);
+            font-size: 1.4em;
+        }
+        
+        .points-animation.low-value {
+            color: #FF9800;
+            text-shadow: 0 0 5px rgba(255, 152, 0, 0.6);
+        }
+        
+        @keyframes pointsFloat {
+            0% {
+                opacity: 1;
+                transform: translateY(0px) scale(1);
+            }
+            50% {
+                opacity: 1;
+                transform: translateY(-30px) scale(1.2);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-60px) scale(0.8);
+            }
+        }
+        
+        .resource-item {
+            position: relative;
+        }
+        
+        .collected-pulse {
+            animation: collectPulse 0.3s ease-out;
+        }
+        
+        @keyframes collectPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); box-shadow: 0 0 20px rgba(76, 175, 80, 0.8); }
+            100% { transform: scale(0.6); }
+        }
+    </style>
+</head>
+<body>
+    <script>
+        // Initialize jsPsych
+        const jsPsych = initJsPsych({
+            override_safe_mode: true,
+            on_finish: function(data) {
+                jsPsych.data.displayData();
+            }
+        });
+
+        // IDED Configuration
+        const CONFIG = {
+            TOTAL_RESOURCES_PER_TRIAL: 50, // FINITE POOL - the key constraint!
+            TRAVEL_COST: 3, // Points lost when traveling
+            TRAVEL_TIME: 2000, // 2 seconds travel time
+            TRIAL_DURATION: 30000, // 30 seconds per trial
+            HIGH_VALUE_MULTIPLIER: 3.0,
+            LOW_VALUE_BASE: [2, 5],
+            HIGH_VALUE_BASE: [8, 15],
+            EPOCHS: {
+                1: { trials: [1, 15], dimension: 'color', value: 'red', type: 'initial_learning' },
+                2: { trials: [16, 30], dimension: 'shape', value: 'circle', type: 'extra_dimensional_shift' },
+                3: { trials: [31, 45], dimension: 'location', value: 'top', type: 'extra_dimensional_shift' },
+                4: { trials: [46, 60], dimension: 'color', value: 'red', type: 'return_to_initial' } // CONTINUAL LEARNING TEST
+            }
+        };
+
+        // Global experiment state
+        let experimentState = {
+            currentTrial: 0,
+            currentEpoch: 1,
+            totalScore: 0,
+            resourcesRemaining: CONFIG.TOTAL_RESOURCES_PER_TRIAL,
+            currentPatch: null,
+            patches: [],
+            trialStartTime: 0,
+            timeRemaining: CONFIG.TRIAL_DURATION,
+            isTraversing: false,
+            blockTransitions: []
+        };
+
+        // IDED Stimulus dimensions
+        const dimensions = {
+            colors: ['red', 'blue', 'green', 'yellow'],
+            shapes: ['circle', 'square', 'triangle', 'diamond'],
+            locations: ['top', 'bottom'], // Spatial location of patches
+            symbols: { 'circle': '●', 'square': '■', 'triangle': '▲', 'diamond': '♦' }
+        };
+
+        // Current rule (hidden from participant)
+        function getCurrentRule() {
+            for (let epoch in CONFIG.EPOCHS) {
+                const epochData = CONFIG.EPOCHS[epoch];
+                if (experimentState.currentTrial >= epochData.trials[0] && 
+                    experimentState.currentTrial <= epochData.trials[1]) {
+                    return epochData;
+                }
+            }
+            return CONFIG.EPOCHS[1]; // Default
+        }
+
+        // Initialize patches with compound stimuli
+        function initializePatches() {
+            experimentState.patches = [
+                {
+                    id: 0,
+                    name: 'A',
+                    location: 'top',
+                    position: 'top-left',
+                    resources: [],
+                    visited: false
+                },
+                {
+                    id: 1,
+                    name: 'B', 
+                    location: 'top',
+                    position: 'top-right',
+                    resources: [],
+                    visited: false
+                },
+                {
+                    id: 2,
+                    name: 'C',
+                    location: 'bottom',
+                    position: 'bottom-left',
+                    resources: [],
+                    visited: false
+                },
+                {
+                    id: 3,
+                    name: 'D',
+                    location: 'bottom',
+                    position: 'bottom-right',
+                    resources: [],
+                    visited: false
+                }
+            ];
+
+            // Distribute the FINITE resources across patches
+            distributeFiniteResources();
+        }
+
+        function distributeFiniteResources() {
+            const totalResources = CONFIG.TOTAL_RESOURCES_PER_TRIAL;
+            const resourcesPerPatch = Math.floor(totalResources / 4);
+            const extraResources = totalResources % 4;
+
+            experimentState.patches.forEach((patch, index) => {
+                const resourceCount = resourcesPerPatch + (index < extraResources ? 1 : 0);
+                patch.resources = generateCompoundStimuli(resourceCount);
+            });
+
+            experimentState.resourcesRemaining = totalResources;
+        }
+
+        function generateCompoundStimuli(count) {
+            const resources = [];
+            for (let i = 0; i < count; i++) {
+                resources.push({
+                    id: i,
+                    // COMPOUND STIMULI - each resource has ALL dimensions
+                    color: dimensions.colors[Math.floor(Math.random() * dimensions.colors.length)],
+                    shape: dimensions.shapes[Math.floor(Math.random() * dimensions.shapes.length)],
+                    collected: false,
+                    baseValue: Math.random() * 3 + 2 // 2-5 base value
+                });
+            }
+            return resources;
+        }
+
+        function isHighValueResource(resource, patchLocation) {
+            const currentRule = getCurrentRule();
+            
+            switch (currentRule.dimension) {
+                case 'color':
+                    return resource.color === currentRule.value;
+                case 'shape':
+                    return resource.shape === currentRule.value;
+                case 'location':
+                    return patchLocation === currentRule.value;
+                default:
+                    return false;
+            }
+        }
+
+        function calculateResourceValue(resource, patch) {
+            let baseValue = resource.baseValue;
+            
+            // Apply current IDED rule (unknown to participant)
+            if (isHighValueResource(resource, patch.location)) {
+                baseValue *= CONFIG.HIGH_VALUE_MULTIPLIER;
+            }
+            
+            // Add noise
+            const finalValue = baseValue * (0.8 + Math.random() * 0.4);
+            return Math.round(Math.max(1, finalValue));
+        }
+
+        // Global trial data
+        let currentTrialData = {};
+        let trialTimer = null;
+
+        // Create the main task HTML
+        function createTaskHTML() {
+            const currentRule = getCurrentRule();
+            const resourcesCollected = CONFIG.TOTAL_RESOURCES_PER_TRIAL - experimentState.resourcesRemaining;
+            const resourcePercentage = (experimentState.resourcesRemaining / CONFIG.TOTAL_RESOURCES_PER_TRIAL) * 100;
+
+            return `
+                <div class="feedback-area" id="feedback-area"></div>
+                <div class="foraging-environment">
+                    <div class="trial-header">
+                        <div class="stats-row">
+                            <div class="stat">
+                                <div class="stat-value">${experimentState.currentTrial}</div>
+                                <div class="stat-label">Trial</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-value">Epoch ${experimentState.currentEpoch}</div>
+                                <div class="stat-label">${currentRule.type.replace(/_/g, ' ')}</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-value" id="score-display">${experimentState.totalScore}</div>
+                                <div class="stat-label">Total Score</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-value" id="time-remaining">${Math.round(experimentState.timeRemaining/1000)}</div>
+                                <div class="stat-label">Seconds Left</div>
+                            </div>
+                        </div>
+                        
+                        <div class="global-resources">
+                            <div><strong>FINITE RESOURCES REMAINING: ${experimentState.resourcesRemaining}/${CONFIG.TOTAL_RESOURCES_PER_TRIAL}</strong></div>
+                            <div class="resource-pool-bar">
+                                <div class="resource-pool-fill" style="width: ${resourcePercentage}%"></div>
+                            </div>
+                            <div style="font-size: 0.9em; color: #d32f2f;">
+                                Once collected, resources are GONE FOREVER this trial!
+                            </div>
+                        </div>
+                    </div>
+
+                    ${experimentState.resourcesRemaining === 0 ? `
+                        <div class="constraint-warning">
+                            🚨 ALL RESOURCES DEPLETED! 🚨<br>
+                            No more resources available this trial. Press SPACE to end trial.
+                        </div>
+                    ` : ''}
+
+                    <div class="patches-grid">
+                        ${experimentState.patches.map((patch, index) => `
+                            <div class="patch ${experimentState.currentPatch === index ? 'active' : ''} ${patch.location}-location"
+                                 data-patch-id="${index}">
+                                <div class="patch-header">
+                                    <div class="patch-title">Patch ${patch.name}</div>
+                                    <div class="patch-location">${patch.position} (${patch.location})</div>
+                                    <div style="font-size: 0.8em;">
+                                        ${patch.resources.filter(r => !r.collected).length} resources remaining
+                                    </div>
+                                </div>
+                                
+                                ${experimentState.currentPatch === index && !experimentState.isTraversing ? `
+                                    <div class="resources-grid">
+                                        ${patch.resources.map(resource => `
+                                            <div class="resource-item ${resource.collected ? 'collected' : ''}"
+                                                 style="background-color: ${resource.color};"
+                                                 data-resource-id="${resource.id}"
+                                                 title="Color: ${resource.color}, Shape: ${resource.shape}">
+                                                ${dimensions.symbols[resource.shape]}
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                ` : patch === experimentState.patches[experimentState.currentPatch] && experimentState.isTraversing ? `
+                                    <div style="text-align: center; padding: 40px; color: #666;">
+                                        <div style="font-size: 1.2em;">🚶 Traveling...</div>
+                                        <div>Travel time: ${CONFIG.TRAVEL_TIME/1000} seconds</div>
+                                        <div style="color: #d32f2f;">Cost: -${CONFIG.TRAVEL_COST} points</div>
+                                    </div>
+                                ` : `
+                                    <div style="text-align: center; padding: 40px; color: #999;">
+                                        <div style="font-size: 1.5em;">?</div>
+                                        <div>Click to explore</div>
+                                        ${experimentState.currentPatch !== null ? `<div style="color: #d32f2f; font-size: 0.8em; margin-top: 10px;">Travel cost: -${CONFIG.TRAVEL_COST} pts</div>` : ''}
+                                    </div>
+                                `}
+                                
+                                ${experimentState.currentPatch !== null && experimentState.currentPatch !== index && !experimentState.isTraversing ? `
+                                    <div class="travel-cost-display">-${CONFIG.TRAVEL_COST} pts</div>
+                                ` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div class="action-area">
+                        ${experimentState.currentPatch !== null && !experimentState.isTraversing ? `
+                            <button class="action-btn leave" id="leave-patch-btn">
+                                Leave Patch ${experimentState.patches[experimentState.currentPatch].name}
+                            </button>
+                        ` : ''}
+                        <button class="action-btn end-trial" id="end-trial-btn">
+                            End Trial (SPACE)
+                        </button>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 20px; padding: 15px; background: rgba(33, 150, 243, 0.1); border-radius: 8px;">
+                        <strong>IDED Foraging:</strong> Discover which stimulus features predict high rewards. 
+                        Each resource has multiple dimensions (color, shape, location). 
+                        Resource patterns may change between trial blocks!
+                    </div>
+                </div>
+            `;
+        }
+
+        // Event handlers
+        function addEventListeners() {
+            // Patch selection
+            document.querySelectorAll('.patch').forEach(patch => {
+                patch.addEventListener('click', function() {
+                    const patchId = parseInt(this.dataset.patchId);
+                    selectPatch(patchId);
+                });
+            });
+
+            // Resource collection
+            document.querySelectorAll('.resource-item:not(.collected)').forEach(resource => {
+                resource.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const resourceId = parseInt(this.dataset.resourceId);
+                    collectResource(resourceId);
+                });
+            });
+
+            // Action buttons
+            const leavePatchBtn = document.getElementById('leave-patch-btn');
+            if (leavePatchBtn) {
+                leavePatchBtn.addEventListener('click', leavePatch);
+            }
+
+            const endTrialBtn = document.getElementById('end-trial-btn');
+            if (endTrialBtn) {
+                endTrialBtn.addEventListener('click', () => jsPsych.finishTrial());
+            }
+        }
+
+        function selectPatch(patchId) {
+            if (experimentState.isTraversing || experimentState.resourcesRemaining === 0) return;
+            if (experimentState.currentPatch === patchId) return;
+
+            const patch = experimentState.patches[patchId];
+            
+            // Apply travel cost if switching patches
+            if (experimentState.currentPatch !== null) {
+                experimentState.totalScore = Math.max(0, experimentState.totalScore - CONFIG.TRAVEL_COST);
+                showFeedback(`Travel cost: -${CONFIG.TRAVEL_COST} points`, 'travel');
+                
+                // Record travel
+                currentTrialData.travels = currentTrialData.travels || [];
+                currentTrialData.travels.push({
+                    from_patch: experimentState.currentPatch,
+                    to_patch: patchId,
+                    timestamp: performance.now() - experimentState.trialStartTime,
+                    cost: CONFIG.TRAVEL_COST
+                });
+                
+                // Update score display for travel cost
+                updateScoreDisplay();
+            }
+
+            // Travel time
+            experimentState.isTraversing = true;
+            updateDisplay(); // Full update needed for travel state
+            
+            setTimeout(() => {
+                experimentState.currentPatch = patchId;
+                patch.visited = true;
+                experimentState.isTraversing = false;
+                updateDisplay(); // Full update needed to show new patch resources
+            }, CONFIG.TRAVEL_TIME);
+        }
+
+        function collectResource(resourceId) {
+            if (experimentState.currentPatch === null || experimentState.isTraversing || 
+                experimentState.resourcesRemaining === 0) return;
+            
+            const patch = experimentState.patches[experimentState.currentPatch];
+            const resource = patch.resources.find(r => r.id === resourceId);
+            
+            if (!resource || resource.collected) return;
+            
+            // Get the resource element for animation positioning
+            const resourceElement = document.querySelector(`[data-resource-id="${resourceId}"]`);
+            
+            resource.collected = true;
+            experimentState.resourcesRemaining--; // FINITE RESOURCE CONSTRAINT!
+            
+            const reward = calculateResourceValue(resource, patch);
+            const isHighValue = isHighValueResource(resource, patch.location);
+            experimentState.totalScore += reward;
+            
+            // Show points animation
+            if (resourceElement) {
+                showPointsAnimation(resourceElement, reward, isHighValue);
+                
+                // Add collection pulse effect
+                resourceElement.classList.add('collected-pulse');
+                setTimeout(() => {
+                    resourceElement.classList.remove('collected-pulse');
+                    resourceElement.classList.add('collected');
+                    resourceElement.style.pointerEvents = 'none';
+                }, 300);
+            }
+            
+            // Record collection with IDED data
+            currentTrialData.collections = currentTrialData.collections || [];
+            currentTrialData.collections.push({
+                patch_id: experimentState.currentPatch,
+                patch_location: patch.location,
+                resource_id: resourceId,
+                reward: reward,
+                was_high_value: isHighValue,
+                timestamp: performance.now() - experimentState.trialStartTime,
+                current_rule: getCurrentRule(),
+                resource_properties: {
+                    color: resource.color,
+                    shape: resource.shape,
+                    patch_location: patch.location
+                }
+            });
+            
+            showFeedback(`+${reward} points${isHighValue ? ' (High Value!)' : ''}`, 'reward');
+            
+            // Check for resource depletion
+            if (experimentState.resourcesRemaining === 0) {
+                showFeedback('ALL RESOURCES DEPLETED!', 'scarcity');
+            }
+            
+            // Update displays without full refresh
+            updateScoreDisplay();
+            updateResourceCounter();
+        }
+
+        function showPointsAnimation(resourceElement, points, isHighValue) {
+            const rect = resourceElement.getBoundingClientRect();
+            const pointsElement = document.createElement('div');
+            
+            pointsElement.className = `points-animation ${isHighValue ? 'high-value' : 'low-value'}`;
+            pointsElement.textContent = `+${points}`;
+            pointsElement.style.position = 'fixed';
+            pointsElement.style.left = `${rect.left + rect.width/2}px`;
+            pointsElement.style.top = `${rect.top + rect.height/2}px`;
+            pointsElement.style.transform = 'translate(-50%, -50%)';
+            
+            document.body.appendChild(pointsElement);
+            
+            // Remove after animation completes
+            setTimeout(() => {
+                if (pointsElement.parentNode) {
+                    pointsElement.parentNode.removeChild(pointsElement);
+                }
+            }, 1500);
+        }
+
+        function updateScoreDisplay() {
+            const scoreDisplay = document.getElementById('score-display');
+            if (scoreDisplay) {
+                scoreDisplay.textContent = experimentState.totalScore;
+                
+                // Add brief highlight effect
+                scoreDisplay.style.color = '#4CAF50';
+                scoreDisplay.style.transform = 'scale(1.1)';
+                setTimeout(() => {
+                    scoreDisplay.style.color = '#333';
+                    scoreDisplay.style.transform = 'scale(1)';
+                }, 300);
+            }
+        }
+
+        function updateResourceCounter() {
+            const resourcePercentage = (experimentState.resourcesRemaining / CONFIG.TOTAL_RESOURCES_PER_TRIAL) * 100;
+            const resourceFill = document.querySelector('.resource-pool-fill');
+            if (resourceFill) {
+                resourceFill.style.width = `${resourcePercentage}%`;
+            }
+            
+            // Update remaining count text
+            const resourceText = document.querySelector('.global-resources div:first-child');
+            if (resourceText) {
+                resourceText.innerHTML = `<strong>FINITE RESOURCES REMAINING: ${experimentState.resourcesRemaining}/${CONFIG.TOTAL_RESOURCES_PER_TRIAL}</strong>`;
+            }
+        }
+
+        function leavePatch() {
+            if (experimentState.currentPatch !== null) {
+                const patch = experimentState.patches[experimentState.currentPatch];
+                
+                // Record leaving decision
+                currentTrialData.patch_leaves = currentTrialData.patch_leaves || [];
+                currentTrialData.patch_leaves.push({
+                    patch_id: experimentState.currentPatch,
+                    timestamp: performance.now() - experimentState.trialStartTime,
+                    resources_remaining: patch.resources.filter(r => !r.collected).length
+                });
+            }
+            
+            experimentState.currentPatch = null;
+            updateDisplay(); // Full update needed to show patch selection view
+        }
+
+        function showFeedback(message, type) {
+            const feedbackArea = document.getElementById('feedback-area');
+            if (!feedbackArea) return;
+            
+            const feedback = document.createElement('div');
+            feedback.className = `feedback ${type}`;
+            feedback.textContent = message;
+            feedbackArea.appendChild(feedback);
+            
+            setTimeout(() => {
+                if (feedback.parentNode) {
+                    feedback.parentNode.removeChild(feedback);
+                }
+            }, 3000);
+        }
+
+        function updateDisplay() {
+            const content = document.querySelector('.jspsych-content');
+            if (content) {
+                content.innerHTML = createTaskHTML();
+                updateTimer();
+                addEventListeners();
+            }
+        }
+
+        function updateDisplaySelective() {
+            // Update only specific elements without full refresh to preserve animations
+            updateScoreDisplay();
+            updateResourceCounter();
+            updateTimer();
+        }
+
+        function updateTimer() {
+            const timeLeft = Math.max(0, experimentState.timeRemaining);
+            const timeDisplay = document.getElementById('time-remaining');
+            if (timeDisplay) timeDisplay.textContent = Math.round(timeLeft/1000);
+        }
+
+        function checkEpochTransition() {
+            const newEpoch = getCurrentEpoch();
+            if (newEpoch !== experimentState.currentEpoch) {
+                experimentState.currentEpoch = newEpoch;
+                return true;
+            }
+            return false;
+        }
+
+        function getCurrentEpoch() {
+            for (let epoch in CONFIG.EPOCHS) {
+                const epochData = CONFIG.EPOCHS[epoch];
+                if (experimentState.currentTrial >= epochData.trials[0] && 
+                    experimentState.currentTrial <= epochData.trials[1]) {
+                    return parseInt(epoch);
+                }
+            }
+            return 1;
+        }
+
+        // Instructions - emphasize IDED structure
+        const instructions = {
+            type: jsPsychInstructions,
+            pages: [
+                `<h2>Multi-Dimensional Resource Foraging Task</h2>
+                 <p>You will forage for resources across 4 patches arranged in a 2x2 grid.</p>
+                 <p><strong>CRITICAL CONSTRAINT:</strong> Each trial has only <strong>${CONFIG.TOTAL_RESOURCES_PER_TRIAL} resources total</strong> across all patches.</p>
+                 <p>Once collected, resources are <strong>gone forever</strong> that trial!</p>`,
+                
+                `<h3>Multi-Dimensional Resources</h3>
+                 <p>Each resource has <strong>multiple features</strong>:</p>
+                 <ul>
+                   <li><strong>Color:</strong> Red, blue, green, yellow</li>
+                   <li><strong>Shape:</strong> Circle (●), square (■), triangle (▲), diamond (♦)</li>
+                   <li><strong>Location:</strong> Top patches vs bottom patches</li>
+                 </ul>
+                 <p><strong>Hidden Rule:</strong> Some feature predicts higher rewards, but you must discover which one!</p>`,
+                
+                `<h3>Foraging Constraints</h3>
+                 <p><strong>Finite Resources:</strong> Only ${CONFIG.TOTAL_RESOURCES_PER_TRIAL} resources per trial across ALL patches</p>
+                 <p><strong>Travel Costs:</strong> Moving between patches costs ${CONFIG.TRAVEL_COST} points and ${CONFIG.TRAVEL_TIME/1000} seconds</p>
+                 <p><strong>Time Pressure:</strong> ${CONFIG.TRIAL_DURATION/1000} seconds per trial</p>
+                 <p><strong>Strategic Decision:</strong> When to leave a patch vs when to stay?</p>`,
+                
+                `<h3>What Changes During the Experiment</h3>
+                 <p><strong>The reward rule will change</strong> across different trial blocks!</p>
+                 <p>A feature that predicts high rewards in early trials might become irrelevant later.</p>
+                 <p>Pay attention to which features consistently give higher rewards.</p>
+                 <p><strong>Key Question:</strong> Can you adapt when rules change?</p>`,
+                
+                `<h3>Controls & Strategy</h3>
+                 <p><strong>Select Patch:</strong> Click on patch areas</p>
+                 <p><strong>Collect Resource:</strong> Click on individual items</p>
+                 <p><strong>Leave Patch:</strong> Click "Leave Patch" button</p>
+                 <p><strong>End Trial:</strong> Press SPACE or click "End Trial"</p>
+                 <br>
+                 <p><strong>Strategy Tips:</strong></p>
+                 <ul>
+                   <li>Discover which features predict high rewards</li>
+                   <li>Balance exploration vs exploitation</li>
+                   <li>Consider travel costs vs potential rewards</li>
+                   <li>Adapt when reward patterns change!</li>
+                 </ul>`
+            ],
+            show_clickable_nav: true,
+            button_label_next: 'Next',
+            button_label_previous: 'Previous'
+        };
+
+        // Create timeline
+        let timeline = [];
+        timeline.push(instructions);
+
+        // Generate trials with epoch transitions
+        for (let trialNum = 1; trialNum <= 60; trialNum++) {
+            // Check for epoch transition
+            const isEpochTransition = trialNum === 16 || trialNum === 31 || trialNum === 46;
+            
+            if (isEpochTransition) {
+                const newEpoch = getCurrentEpoch();
+                const epochData = CONFIG.EPOCHS[newEpoch];
+                
+                timeline.push({
+                    type: jsPsychHtmlKeyboardResponse,
+                    stimulus: `
+                        <div class="epoch-transition">
+                            <h2>New Trial Block!</h2>
+                            <p style="font-size: 1.1em;">Block ${newEpoch} of 4</p>
+                            <p style="font-size: 1.3em; margin: 20px 0;">
+                                <strong>${epochData.type.replace(/_/g, ' ').toUpperCase()}</strong>
+                            </p>
+                            ${newEpoch === 4 ? `
+                                <p style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; margin: 20px 0;">
+                                    <strong>🔄 RETURNING PHASE 🔄</strong><br>
+                                    The reward pattern from the first block may return.<br>
+                                    Can you adapt quickly if it does?
+                                </p>
+                            ` : `
+                                <p style="margin: 20px 0;">
+                                    The reward patterns may have changed.<br>
+                                    Discover the new rule through exploration!
+                                </p>
+                            `}
+                            <p><em>Press any key to continue</em></p>
+                        </div>
+                    `,
+                    data: { 
+                        phase: 'epoch_transition', 
+                        new_epoch: newEpoch,
+                        epoch_type: epochData.type
+                    }
+                });
+            }
+
+            timeline.push({
+                type: jsPsychHtmlKeyboardResponse,
+                stimulus: function() {
+                    return createTaskHTML();
+                },
+                choices: [' '],
+                trial_duration: CONFIG.TRIAL_DURATION,
+                on_start: function(trial) {
+                    // Initialize trial
+                    experimentState.currentTrial = trialNum;
+                    experimentState.currentEpoch = getCurrentEpoch();
+                    experimentState.currentPatch = null;
+                    experimentState.timeRemaining = CONFIG.TRIAL_DURATION;
+                    experimentState.trialStartTime = performance.now();
+                    experimentState.isTraversing = false;
+                    
+                    // Initialize patches with finite resources
+                    initializePatches();
+                    
+                    // Reset trial data
+                    currentTrialData = {
+                        trial_number: experimentState.currentTrial,
+                        epoch_number: experimentState.currentEpoch,
+                        current_rule: getCurrentRule(),
+                        collections: [],
+                        travels: [],
+                        patch_leaves: [],
+                        total_resources_available: CONFIG.TOTAL_RESOURCES_PER_TRIAL
+                    };
+                    
+                    trialTimer = setInterval(() => {
+                        experimentState.timeRemaining -= 100;
+                        updateTimer();
+                        
+                        if (experimentState.timeRemaining <= 0) {
+                            clearInterval(trialTimer);
+                            jsPsych.finishTrial();
+                        }
+                    }, 100);
+                    
+                    setTimeout(() => {
+                        addEventListeners();
+                    }, 100);
+                },
+                on_finish: function(data) {
+                    if (trialTimer) clearInterval(trialTimer);
+                    
+                    // Calculate performance metrics
+                    currentTrialData.trial_duration = CONFIG.TRIAL_DURATION - experimentState.timeRemaining;
+                    currentTrialData.total_reward = currentTrialData.collections ? 
+                        currentTrialData.collections.reduce((sum, c) => sum + c.reward, 0) : 0;
+                    currentTrialData.accuracy = currentTrialData.collections ? 
+                        currentTrialData.collections.filter(c => c.was_high_value).length / 
+                        Math.max(1, currentTrialData.collections.length) : 0;
+                    currentTrialData.resources_collected = currentTrialData.collections ? 
+                        currentTrialData.collections.length : 0;
+                    currentTrialData.resources_remaining = experimentState.resourcesRemaining;
+                    currentTrialData.exploration_efficiency = currentTrialData.travels ? 
+                        currentTrialData.total_reward / Math.max(1, currentTrialData.travels.length + 1) : 
+                        currentTrialData.total_reward;
+                    
+                    // IDED-specific measures
+                    currentTrialData.dimensional_strategy = analyzeDimensionalStrategy(currentTrialData.collections);
+                    currentTrialData.rule_adherence = currentTrialData.accuracy;
+                    currentTrialData.is_continual_learning_test = experimentState.currentEpoch === 4;
+                    
+                    Object.assign(data, currentTrialData);
+                    data.final_score = experimentState.totalScore;
+                    data.phase = 'main_experiment';
+                }
+            });
+        }
+
+        function analyzeDimensionalStrategy(collections) {
+            if (!collections || collections.length === 0) return null;
+            
+            const strategies = {
+                color_focused: 0,
+                shape_focused: 0,
+                location_focused: 0,
+                mixed: 0
+            };
+            
+            collections.forEach(collection => {
+                const props = collection.resource_properties;
+
+            });
+            
+            return strategies;
+        }
+
+        timeline.push({
+            type: jsPsychSurveyText,
+            questions: [
+                {
+                    prompt: "Which features of the resources (color, shape, location) did you notice gave higher rewards? Did this change during the experiment?",
+                    required: true,
+                    rows: 4
+                },
+                {
+                    prompt: "In the final block (trials 46-60), did you notice the reward pattern was similar to an earlier block? How quickly did you adapt?",
+                    required: true,
+                    rows: 4
+                },
+                {
+                    prompt: "How did the finite resource constraint (only 50 resources per trial) affect your foraging strategy?",
+                    required: true,
+                    rows: 3
+                },
+                {
+                    prompt: "What strategy did you use for deciding when to travel to a new patch versus staying in your current patch?",
+                    required: true,
+                    rows: 3
+                }
+            ],
+            preamble: `
+                <h2>Experiment Complete!</h2>
+                <p><strong>Final Score: ${experimentState.totalScore}</strong></p>
+                <p>This experiment tested how people adapt to changing reward rules while foraging under resource constraints.</p>
+                <p>Please tell us about your experience:</p>
+            `
+        });
+
+        jsPsych.run(timeline);
+    </script>
+</body>
+</html>
